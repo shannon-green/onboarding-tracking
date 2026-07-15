@@ -125,8 +125,11 @@
   .upload-footer{ display:flex; justify-content:flex-end; gap:10px; padding:0 20px 20px; }
 
   @media (max-width: 720px){
-    .cards{ grid-template-columns: 1fr; }
     .upload-grid{ grid-template-columns:1fr; }
+    .cards{ gap:8px; }
+    .card{ padding:12px 10px; }
+    .card .v{ font-size:20px; }
+    .card .k{ font-size:9.5px; }
   }
 </style>
 </head>
@@ -145,6 +148,8 @@
       <button class="btn" id="openUploadBtn">Upload Files</button>
     </div>
   </header>
+
+  <div id="storageErrorBanner" style="display:none; background:rgba(229,86,107,0.12); border:1px solid var(--danger); color:var(--danger); border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:13px; font-family:var(--mono);"></div>
 
   <div class="cards">
     <div class="card new"><div class="k">New Onboardings</div><div class="v" id="cardNew">0</div><div class="bar"></div></div>
@@ -265,26 +270,65 @@ const POLL_MS = 8000;
 
 // Storage layer for Vercel deployment — talks to /api/storage (backed by Vercel KV)
 // instead of the Claude-artifacts-only window.storage API.
+function showStorageError(message){
+  const banner = document.getElementById('storageErrorBanner');
+  if(!banner) return;
+  banner.textContent = '⚠ ' + message;
+  banner.style.display = 'block';
+}
+function clearStorageError(){
+  const banner = document.getElementById('storageErrorBanner');
+  if(!banner) return;
+  banner.style.display = 'none';
+}
 async function storageGet(key){
   try{
-    const res = await fetch(`/api/storage?key=${encodeURIComponent(key)}`);
-    if(!res.ok) return null;
+    // cache: 'no-store' plus a cache-busting timestamp param prevents the browser/CDN
+    // from serving a stale cached response (304) instead of the current data.
+    const res = await fetch(`/api/storage?key=${encodeURIComponent(key)}&_=${Date.now()}`, { cache: 'no-store' });
+    if(res.status === 404) { clearStorageError(); return null; } // expected: key doesn't exist yet
+    if(!res.ok){
+      const text = await res.text().catch(()=> '');
+      showStorageError(`Couldn't load data from the server (status ${res.status}). ${text.slice(0,200)}`);
+      return null;
+    }
+    clearStorageError();
     return await res.json(); // { key, value } or null
-  }catch(e){ return null; }
+  }catch(e){
+    showStorageError(`Couldn't reach the server to load data: ${e.message}`);
+    return null;
+  }
 }
 async function storageSet(key, value){
   try{
-    await fetch('/api/storage', {
+    const res = await fetch('/api/storage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value })
+      body: JSON.stringify({ key, value }),
+      cache: 'no-store'
     });
-  }catch(e){ /* best-effort */ }
+    if(!res.ok){
+      const text = await res.text().catch(()=> '');
+      showStorageError(`Couldn't save your upload (status ${res.status}). ${text.slice(0,200)}`);
+      return false;
+    }
+    clearStorageError();
+    return true;
+  }catch(e){
+    showStorageError(`Couldn't reach the server to save your upload: ${e.message}`);
+    return false;
+  }
 }
 async function storageDelete(key){
   try{
-    await fetch(`/api/storage?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
-  }catch(e){ /* best-effort */ }
+    const res = await fetch(`/api/storage?key=${encodeURIComponent(key)}`, { method: 'DELETE', cache: 'no-store' });
+    if(!res.ok){
+      const text = await res.text().catch(()=> '');
+      showStorageError(`Couldn't clear data (status ${res.status}). ${text.slice(0,200)}`);
+    }
+  }catch(e){
+    showStorageError(`Couldn't reach the server to clear data: ${e.message}`);
+  }
 }
 
 let onboardData = [];
