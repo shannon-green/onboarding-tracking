@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advertiser Onboarding — fullthrottle.ai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg: #0B0F19;
+    --surface: #141B2C;
+    --surface-2: #1B2436;
+    --border: #262F45;
+    --accent: #4C7CF3;
+    --success: #2FBF71;
+    --success-dim: rgba(47,191,113,0.12);
+    --warning: #F5A623;
+    --warning-dim: rgba(245,166,35,0.12);
+    --danger: #E5566B;
+    --danger-dim: rgba(229,86,107,0.12);
+    --text: #E9ECF5;
+    --text-dim: #8C93AB;
+    --text-faint: #5D6480;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: var(--bg); color: var(--text); font-family: var(--body); min-height:100vh;
+    background-image:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(76,124,243,0.10), transparent),
+      radial-gradient(ellipse 700px 500px at 100% 0%, rgba(47,191,113,0.05), transparent);
+  }
+  .wrap{ max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  header{ display:flex; align-items:center; justify-content:space-between; padding-bottom:22px; margin-bottom:26px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:14px;}
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-mark{ width:34px;height:34px;border-radius:8px; background:linear-gradient(135deg,var(--accent),#7C9CFF); display:flex;align-items:center;justify-content:center; font-family:var(--display); font-weight:700; color:#0B0F19; font-size:15px;}
+  .brand-text h1{ font-family:var(--display); font-size:17px; font-weight:600; letter-spacing:-0.01em;}
+  .brand-text p{ font-size:11.5px; color:var(--text-faint); font-family:var(--mono); margin-top:1px;}
+  .header-right{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  #liveDot{ display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-dim); font-family:var(--mono);}
+  .dot{ width:7px;height:7px;border-radius:50%; background:var(--success); animation: pulse 2s infinite;}
+  @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(47,191,113,0.5);} 70%{box-shadow:0 0 0 7px rgba(47,191,113,0);} 100%{box-shadow:0 0 0 0 rgba(47,191,113,0);} }
+  .btn{ font-family:var(--body); font-weight:600; font-size:13px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--text); padding:9px 15px; cursor:pointer; transition:all .15s ease; white-space:nowrap;}
+  .btn:hover{ border-color:var(--accent); color:#fff; }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#0B0F19; }
+  .btn-primary:hover{ background:#6690FF; color:#0B0F19; }
+  .btn-ghost{ background:transparent; }
+  .btn-sm{ padding:6px 12px; font-size:12px; border-radius:7px; }
+  .btn-danger-ghost{ color:var(--danger); border-color: rgba(229,86,107,0.35); background:transparent; }
+  .btn-danger-ghost:hover{ border-color:var(--danger); color:var(--danger); background:var(--danger-dim); }
+
+  .cards{ display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; margin-bottom:24px; }
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; position:relative; overflow:hidden;}
+  .card .k{ font-size:11px; color:var(--text-dim); font-family:var(--mono); text-transform:uppercase; letter-spacing:0.05em;}
+  .card .v{ font-family:var(--display); font-size:28px; font-weight:700; margin-top:6px;}
+  .card .bar{ height:3px; border-radius:2px; margin-top:12px; }
+  .card.new .bar{ background:var(--warning); }
+  .card.pending .bar{ background:var(--danger); }
+  .card.installed .bar{ background:var(--success); }
+
+  .panel{ background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:20px;}
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:10px;}
+  .panel-head-left{ display:flex; align-items:center; gap:10px; }
+  .panel-head h2{ font-family:var(--display); font-size:15px; font-weight:600;}
+  .count-badge{ font-family:var(--mono); font-size:12px; padding:2px 9px; border-radius:20px; font-weight:600; }
+  .count-badge.new{ background:var(--warning-dim); color:var(--warning); }
+  .count-badge.pending{ background:var(--danger-dim); color:var(--danger); }
+  .count-badge.installed{ background:var(--success-dim); color:var(--success); }
+  .panel-head-right{ display:flex; gap:8px; }
+  .panel-body-top{ padding:14px 20px; border-bottom:1px solid var(--border); }
+  .search{ background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 13px; color:var(--text); font-family:var(--body); font-size:13px; width:100%; max-width:340px;}
+  .search:focus{ outline:none; border-color:var(--accent); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{ text-align:left; padding:10px 20px; font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-faint); border-bottom:1px solid var(--border); white-space:nowrap;}
+  tbody td{ padding:11px 20px; border-bottom:1px solid var(--border); color:var(--text-dim); white-space:nowrap;}
+  tbody tr:hover{ background:var(--surface-2); }
+  tbody tr:last-child td{ border-bottom:none; }
+  td.company{ color:var(--text); font-weight:500; }
+  td.mono{ font-family:var(--mono); font-size:12px; }
+  .table-scroll{ overflow-x:auto; max-height:360px; overflow-y:auto; }
+  .empty-state{ padding:44px 20px; text-align:center; color:var(--text-faint); font-size:13px; }
+  td.note-cell{ padding:6px 10px; }
+  .note-input{
+    width:200px; background:var(--surface-2); border:1px solid var(--border); border-radius:7px;
+    padding:7px 10px; color:var(--text); font-family:var(--body); font-size:12.5px;
+    transition: border-color .15s ease;
+  }
+  .note-input:focus{ outline:none; border-color:var(--accent); }
+  .note-input.saved{ border-color: var(--success); }
+
+  footer{ margin-top:30px; display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--text-faint); font-family:var(--mono); flex-wrap:wrap; gap:10px;}
+
+  /* Modal */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(6,9,16,0.75); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
+  .modal-overlay.show{ display:flex; }
+  .modal{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:420px;}
+  .modal h3{ font-family:var(--display); font-size:17px; margin-bottom:6px; }
+  .modal p.sub{ font-size:13px; color:var(--text-dim); margin-bottom:20px; }
+  .modal input[type=password]{ width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:11px 14px; color:var(--text); font-family:var(--mono); font-size:14px; margin-bottom:10px;}
+  .modal input:focus{ outline:none; border-color:var(--accent); }
+  .modal .err{ color:var(--danger); font-size:12.5px; margin-bottom:12px; min-height:16px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:6px; }
+  .modal-actions .btn{ flex:1; text-align:center; }
+
+  .confirm-overlay{ position:fixed; inset:0; background:rgba(6,9,16,0.75); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:110; padding:20px;}
+  .confirm-overlay.show{ display:flex; }
+
+  .upload-panel{ display:none; }
+  .upload-panel.show{ display:block; }
+  .upload-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:20px; }
+  .upload-slot{ border:1.5px dashed var(--border); border-radius:12px; padding:22px; text-align:center; transition:all .15s ease; }
+  .upload-slot.drag{ border-color:var(--accent); background:rgba(76,124,243,0.06); }
+  .upload-slot h4{ font-family:var(--display); font-size:14px; margin-bottom:4px; }
+  .upload-slot .filehint{ font-size:11.5px; color:var(--text-faint); margin-bottom:14px; font-family:var(--mono); }
+  .upload-slot input[type=file]{ display:none; }
+  .upload-slot .last{ margin-top:12px; font-size:11.5px; color:var(--text-dim); font-family:var(--mono); }
+  .upload-slot .last .ok{ color:var(--success); }
+  .upload-footer{ display:flex; justify-content:flex-end; gap:10px; padding:0 20px 20px; }
+
+  @media (max-width: 720px){
+    .cards{ grid-template-columns: 1fr; }
+    .upload-grid{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">ft</div>
+      <div class="brand-text">
+        <h1>Advertiser Onboarding</h1>
+      </div>
+    </div>
+    <div class="header-right">
+      <div id="liveDot"><span class="dot"></span> Live</div>
+      <button class="btn" id="openUploadBtn">Upload Files</button>
+    </div>
+  </header>
+
+  <div class="cards">
+    <div class="card new"><div class="k">New Onboardings</div><div class="v" id="cardNew">0</div><div class="bar"></div></div>
+    <div class="card pending"><div class="k">Pending Script Install</div><div class="v" id="cardPending">0</div><div class="bar"></div></div>
+    <div class="card installed"><div class="k">Script Installed</div><div class="v" id="cardInstalled">0</div><div class="bar"></div></div>
+  </div>
+
+  <!-- Team upload (hidden by default) -->
+  <div class="panel upload-panel" id="uploadPanel">
+    <div class="panel-head">
+      <h2>Upload Files</h2>
+      <button class="btn btn-sm" id="closeUploadBtn">Close</button>
+    </div>
+    <div class="upload-grid">
+      <div class="upload-slot" id="slotOnboard">
+        <h4>Daily Onboarding List</h4>
+        <div class="filehint">.csv or .xlsx — Official Company Name, OHQ ID, Channel OHQ ID, Website, Close Date, Reseller Channel, Opportunity Owner</div>
+        <button class="btn btn-primary" onclick="document.getElementById('fileOnboard').click()">Choose file</button>
+        <input type="file" id="fileOnboard" accept=".csv,.xlsx,.xls">
+        <div class="last" id="lastOnboard">No file uploaded yet</div>
+      </div>
+      <div class="upload-slot" id="slotActive">
+        <h4>ft.app Active Clients</h4>
+        <div class="filehint">.csv or .xlsx — Client Name, OHQ ID, Channel Client ID, Hits (YDA), Hits (7d), HH (YDA)</div>
+        <button class="btn btn-primary" onclick="document.getElementById('fileActive').click()">Choose file</button>
+        <input type="file" id="fileActive" accept=".csv,.xlsx,.xls">
+        <div class="last" id="lastActive">No file uploaded yet</div>
+      </div>
+    </div>
+    <div class="upload-footer">
+      <button class="btn btn-danger-ghost btn-sm" id="clearAllBtn">Clear All Data</button>
+    </div>
+  </div>
+
+  <!-- New Onboardings -->
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-head-left"><h2>New Onboardings</h2><span class="count-badge new" id="badgeNew">0</span></div>
+      <div class="panel-head-right"><button class="btn btn-sm" id="downloadNew">↓ Download CSV</button></div>
+    </div>
+    <div class="panel-body-top"><input class="search" id="searchNew" placeholder="Search by name, Channel ID, or URL…"></div>
+    <div class="table-scroll">
+      <table id="tableNew">
+        <thead><tr><th>Company</th><th>OHQ ID</th><th>Channel OHQ ID</th><th>Website</th><th>Close Date</th><th>Reseller Channel</th><th>Opportunity Owner</th><th>Script</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty-state" id="emptyNew">Upload both files to see results.</div>
+    </div>
+  </div>
+
+  <!-- Pending Script Install -->
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-head-left"><h2>Pending Script Install</h2><span class="count-badge pending" id="badgePending">0</span></div>
+      <div class="panel-head-right"><button class="btn btn-sm" id="downloadPending">↓ Download CSV</button></div>
+    </div>
+    <div class="panel-body-top"><input class="search" id="searchPending" placeholder="Search by name, Channel ID, or URL…"></div>
+    <div class="table-scroll">
+      <table id="tablePending">
+        <thead><tr><th>Company</th><th>OHQ ID</th><th>Channel OHQ ID</th><th>Website</th><th>Close Date</th><th>Reseller Channel</th><th>Opportunity Owner</th><th>Hits (YDA)</th><th>Hits (7d)</th><th>HH (YDA)</th><th>Script</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty-state" id="emptyPending">Upload both files to see results.</div>
+    </div>
+  </div>
+
+  <!-- Script Installed -->
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-head-left"><h2>Script Installed</h2><span class="count-badge installed" id="badgeInstalled">0</span></div>
+      <div class="panel-head-right"><button class="btn btn-sm" id="downloadInstalled">↓ Download CSV</button></div>
+    </div>
+    <div class="panel-body-top"><input class="search" id="searchInstalled" placeholder="Search by name, Channel ID, or URL…"></div>
+    <div class="table-scroll">
+      <table id="tableInstalled">
+        <thead><tr><th>Company</th><th>OHQ ID</th><th>Channel OHQ ID</th><th>Website</th><th>Close Date</th><th>Reseller Channel</th><th>Opportunity Owner</th><th>Hits (YDA)</th><th>Hits (7d)</th><th>HH (YDA)</th><th>Script</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty-state" id="emptyInstalled">Upload both files to see results.</div>
+    </div>
+  </div>
+
+  <footer>
+    <span id="lastUpdated">No uploads yet</span>
+  </footer>
+
+</div>
+
+<!-- Password modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>Upload Files Access</h3>
+    <p class="sub">Enter the team password to upload today's files.</p>
+    <input type="password" id="passwordInput" placeholder="Password" autocomplete="off">
+    <div class="err" id="passwordErr"></div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelPasswordBtn">Cancel</button>
+      <button class="btn btn-primary" id="submitPasswordBtn">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clear confirm modal -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="modal">
+    <h3>Clear all uploaded data?</h3>
+    <p class="sub">This removes both stored files for everyone viewing this site. This can't be undone.</p>
+    <div class="modal-actions">
+      <button class="btn" id="cancelClearBtn">Cancel</button>
+      <button class="btn btn-danger-ghost" id="confirmClearBtn">Clear All Data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const UPLOAD_PASSWORD = "ProdOps";
+const POLL_MS = 8000;
+
+// Storage layer for Vercel deployment — talks to /api/storage (backed by Vercel KV)
+// instead of the Claude-artifacts-only window.storage API.
+async function storageGet(key){
+  try{
+    const res = await fetch(`/api/storage?key=${encodeURIComponent(key)}`);
+    if(!res.ok) return null;
+    return await res.json(); // { key, value } or null
+  }catch(e){ return null; }
+}
+async function storageSet(key, value){
+  try{
+    await fetch('/api/storage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value })
+    });
+  }catch(e){ /* best-effort */ }
+}
+async function storageDelete(key){
+  try{
+    await fetch(`/api/storage?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
+  }catch(e){ /* best-effort */ }
+}
+
+let onboardData = [];
+let activeData = [];
+let notesMap = {}; // { OHQID: noteText }
+let searchTerms = { new:'', pending:'', installed:'' };
+let noteSaveTimers = {};
+let editingNoteKeys = new Set(); // OHQ IDs currently focused, to avoid poll clobbering while typing
+let lastOnboardUploadedAt = null;
+let lastActiveUploadedAt = null;
+
+async function loadStoredData(){
+  try{
+    const ob = await storageGet('reconcile:onboarding');
+    if(ob && ob.value){
+      const parsed = JSON.parse(ob.value);
+      onboardData = parsed.rows || [];
+      lastOnboardUploadedAt = parsed.uploadedAt || null;
+      updateLastLine('lastOnboard', parsed.filename, parsed.uploadedAt);
+    }
+  }catch(e){}
+  try{
+    const ac = await storageGet('reconcile:active');
+    if(ac && ac.value){
+      const parsed = JSON.parse(ac.value);
+      activeData = parsed.rows || [];
+      lastActiveUploadedAt = parsed.uploadedAt || null;
+      updateLastLine('lastActive', parsed.filename, parsed.uploadedAt);
+    }
+  }catch(e){}
+  try{
+    const nt = await storageGet('reconcile:notes');
+    if(nt && nt.value){ notesMap = JSON.parse(nt.value) || {}; }
+  }catch(e){}
+  render();
+}
+
+async function saveNote(channelId, text){
+  const key = channelId.toUpperCase();
+  try{
+    // read-modify-write against latest stored map to avoid clobbering others' concurrent notes
+    let current = {};
+    try{
+      const nt = await storageGet('reconcile:notes');
+      if(nt && nt.value) current = JSON.parse(nt.value) || {};
+    }catch(e){}
+    current[key] = text;
+    await storageSet('reconcile:notes', JSON.stringify(current));
+    notesMap = current;
+  }catch(e){ /* best-effort */ }
+}
+
+function updateLastLine(elId, filename, uploadedAt){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const d = new Date(uploadedAt);
+  el.innerHTML = `<span class="ok">✓</span> ${escapeHtml(filename)} — ${d.toLocaleString()}`;
+}
+
+async function saveFile(kind, rows, filename){
+  const key = kind === 'onboard' ? 'reconcile:onboarding' : 'reconcile:active';
+  const payload = JSON.stringify({ rows, filename, uploadedAt: new Date().toISOString() });
+  await storageSet(key, payload);
+}
+
+function normKey(row, ...names){
+  for(const n of names){
+    if(row[n] !== undefined) return row[n];
+    const found = Object.keys(row).find(k => k.trim().toLowerCase() === n.trim().toLowerCase());
+    if(found) return row[found];
+  }
+  return "";
+}
+
+function dedupeByOhqId(rows, keyField){
+  const seen = new Map();
+  const result = [];
+  rows.forEach(r => {
+    const key = (r[keyField] || '').trim().toUpperCase();
+    if(!key){ result.push(r); return; } // no identifier to dedupe on — keep every such row
+    if(!seen.has(key)){ seen.set(key, r); result.push(r); } // first occurrence wins for a given key
+  });
+  return result;
+}
+
+function mergeOnboardingKeepingExisting(existingRows, newRows){
+  // Channel IDs already in the dashboard are left as-is; only genuinely new Channel IDs get added.
+  // Rows with no Channel OHQ ID at all can't be deduped reliably, so they're always added fresh.
+  const existingIds = new Set(existingRows.map(r => (r.channelOhqId || '').trim().toUpperCase()).filter(Boolean));
+  const merged = [...existingRows];
+  newRows.forEach(r => {
+    const key = (r.channelOhqId || '').trim().toUpperCase();
+    if(!key){ merged.push(r); return; }
+    if(!existingIds.has(key)){
+      merged.push(r);
+      existingIds.add(key);
+    }
+  });
+  return merged;
+}
+
+// Parses a File (CSV or Excel) into an array of plain row objects keyed by header, regardless of source format.
+function parseUploadedFile(file){
+  return new Promise((resolve, reject) => {
+    const name = (file.name || '').toLowerCase();
+    const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
+    if(isExcel){
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try{
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[firstSheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+          resolve(rows);
+        }catch(err){ reject(err); }
+      };
+      reader.onerror = () => reject(new Error('Could not read Excel file'));
+      reader.readAsArrayBuffer(file);
+    } else {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true,
+        complete: (results) => resolve(results.data),
+        error: (err) => reject(err)
+      });
+    }
+  });
+}
+
+async function handleFile(kind, file){
+  let rows;
+  try{
+    rows = await parseUploadedFile(file);
+  }catch(err){
+    alert('Could not read that file. Please make sure it\'s a valid .csv or .xlsx file.');
+    return;
+  }
+  if(kind === 'onboard'){
+    const parsedRows = dedupeByOhqId(rows.map(r => ({
+      company: (normKey(r,"Official Company Name")||"").trim(),
+      ohqId: (normKey(r,"OHQ ID")||"").trim(),
+      channelOhqId: (normKey(r,"Channel OHQ ID")||"").trim(),
+      website: (normKey(r,"Website")||"").trim(),
+      closeDate: (normKey(r,"Close Date")||"").trim(),
+      reseller: (normKey(r,"Reseller Channel")||"").trim(),
+      owner: (normKey(r,"Opportunity Owner")||"").trim(),
+    })).filter(r => r.company), 'channelOhqId');
+    onboardData = mergeOnboardingKeepingExisting(onboardData, parsedRows);
+    await saveFile('onboard', onboardData, file.name);
+    lastOnboardUploadedAt = new Date().toISOString();
+    updateLastLine('lastOnboard', file.name, lastOnboardUploadedAt);
+  } else {
+    activeData = dedupeByOhqId(rows.map(r => ({
+      clientName: (normKey(r,"Client Name")||"").trim(),
+      ohqId: (normKey(r,"OHQ ID")||"").trim(),
+      channelClientId: (normKey(r,"Channel Client ID")||"").trim(),
+      hitsYda: parseFloat(normKey(r,"Hits (YDA)")) || 0,
+      hits7d: parseFloat(normKey(r,"Hits (7d)")) || 0,
+      hhYda: parseFloat(normKey(r,"HH (YDA)")) || 0,
+    })).filter(r => r.channelClientId), 'channelClientId');
+    await saveFile('active', activeData, file.name);
+    lastActiveUploadedAt = new Date().toISOString();
+    updateLastLine('lastActive', file.name, lastActiveUploadedAt);
+  }
+  render();
+}
+
+document.getElementById('fileOnboard').addEventListener('change', e=>{ if(e.target.files[0]) handleFile('onboard', e.target.files[0]); });
+document.getElementById('fileActive').addEventListener('change', e=>{ if(e.target.files[0]) handleFile('active', e.target.files[0]); });
+
+['slotOnboard','slotActive'].forEach(id=>{
+  const el = document.getElementById(id);
+  const kind = id === 'slotOnboard' ? 'onboard' : 'active';
+  el.addEventListener('dragover', e=>{ e.preventDefault(); el.classList.add('drag'); });
+  el.addEventListener('dragleave', ()=> el.classList.remove('drag'));
+  el.addEventListener('drop', e=>{ e.preventDefault(); el.classList.remove('drag'); if(e.dataTransfer.files[0]) handleFile(kind, e.dataTransfer.files[0]); });
+});
+
+// ---------- Reconciliation: 3-stage pipeline ----------
+function reconcile(){
+  const activeByOhq = new Map();
+  activeData.forEach(a => activeByOhq.set((a.channelClientId||'').toUpperCase(), a));
+
+  const buckets = { new: [], pending: [], installed: [] };
+
+  onboardData.forEach(o => {
+    const base = { company:o.company, ohqId:o.ohqId, channelOhqId:o.channelOhqId, website:o.website, closeDate:o.closeDate, reseller:o.reseller, owner:o.owner };
+    if(!o.channelOhqId){
+      // No Channel OHQ ID assigned yet — this is a New Onboarding, can't be matched against ft.app at all.
+      buckets.new.push(base);
+      return;
+    }
+    const match = activeByOhq.get(o.channelOhqId.toUpperCase());
+    if(!match){
+      // Has a Channel OHQ ID but nothing found yet in ft.app — HH (YDA) effectively 0.
+      buckets.pending.push({ ...base, hitsYda: 0, hits7d: 0, hhYda: 0 });
+    } else if(match.hhYda === 0){
+      // Pending Script Install: HH (YDA) is 0.
+      buckets.pending.push({ ...base, hitsYda: match.hitsYda, hits7d: match.hits7d, hhYda: match.hhYda });
+    } else {
+      // Script Installed: HH (YDA) is 1+.
+      buckets.installed.push({ ...base, hitsYda: match.hitsYda, hits7d: match.hits7d, hhYda: match.hhYda });
+    }
+  });
+
+  return buckets;
+}
+
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function matchesSearch(row, term){
+  if(!term) return true;
+  const t = term.toLowerCase();
+  return (row.company||'').toLowerCase().includes(t) || (row.ohqId||'').toLowerCase().includes(t) || (row.channelOhqId||'').toLowerCase().includes(t) || (row.website||'').toLowerCase().includes(t);
+}
+
+function renderSection(key, rows, hasHits){
+  const filtered = rows.filter(r => matchesSearch(r, searchTerms[key]));
+  const tbody = document.querySelector(`#table${cap(key)} tbody`);
+  const empty = document.getElementById(`empty${cap(key)}`);
+  const table = document.getElementById(`table${cap(key)}`);
+
+  if(onboardData.length === 0 && activeData.length === 0){
+    table.style.display = 'none'; empty.style.display = 'block';
+    empty.textContent = 'Upload both files to see results.';
+  } else if(filtered.length === 0){
+    table.style.display = 'none'; empty.style.display = 'block';
+    empty.textContent = searchTerms[key] ? 'No matches for that search.' : 'No records in this stage.';
+  } else {
+    table.style.display = ''; empty.style.display = 'none';
+    tbody.innerHTML = filtered.map(r => {
+      const upId = (r.channelOhqId||'').toUpperCase();
+      // if this note is actively being typed into, preserve the in-progress text instead of overwriting from storage
+      const activeEl = document.activeElement;
+      const isEditingThis = activeEl && activeEl.classList && activeEl.classList.contains('note-input') && activeEl.dataset.channelid && activeEl.dataset.channelid.toUpperCase() === upId;
+      const noteVal = isEditingThis ? activeEl.value : (notesMap[upId] || '');
+      return `
+      <tr>
+        <td class="company">${escapeHtml(r.company)}</td>
+        <td class="mono">${escapeHtml(r.ohqId)}</td>
+        <td class="mono">${escapeHtml(r.channelOhqId)}</td>
+        <td class="mono">${escapeHtml(r.website)}</td>
+        <td>${escapeHtml(r.closeDate)}</td>
+        <td>${escapeHtml(r.reseller)}</td>
+        <td>${escapeHtml(r.owner)}</td>
+        ${hasHits ? `<td class="mono">${r.hitsYda}</td><td class="mono">${r.hits7d}</td><td class="mono">${r.hhYda}</td>` : ''}
+        <td class="note-cell"><input class="note-input" type="text" placeholder="Add a note…" data-channelid="${escapeHtml(r.channelOhqId)}" value="${escapeHtml(noteVal)}"></td>
+      </tr>
+    `;
+    }).join('');
+  }
+  document.getElementById(`badge${cap(key)}`).textContent = rows.length;
+}
+
+// Delegate note input events across all three tables
+document.addEventListener('focusin', e=>{
+  if(e.target.classList && e.target.classList.contains('note-input')){
+    editingNoteKeys.add(e.target.dataset.channelid.toUpperCase());
+  }
+});
+document.addEventListener('focusout', e=>{
+  if(e.target.classList && e.target.classList.contains('note-input')){
+    editingNoteKeys.delete(e.target.dataset.channelid.toUpperCase());
+  }
+});
+document.addEventListener('input', e=>{
+  if(!(e.target.classList && e.target.classList.contains('note-input'))) return;
+  const channelId = e.target.dataset.channelid;
+  const text = e.target.value;
+  e.target.classList.remove('saved');
+  clearTimeout(noteSaveTimers[channelId]);
+  noteSaveTimers[channelId] = setTimeout(async ()=>{
+    await saveNote(channelId, text);
+    e.target.classList.add('saved');
+    setTimeout(()=> e.target.classList.remove('saved'), 900);
+  }, 600);
+});
+
+function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function render(){
+  const b = reconcile();
+
+  document.getElementById('cardNew').textContent = b.new.length;
+  document.getElementById('cardPending').textContent = b.pending.length;
+  document.getElementById('cardInstalled').textContent = b.installed.length;
+
+  const activeEl = document.activeElement;
+  const isTypingNote = activeEl && activeEl.classList && activeEl.classList.contains('note-input');
+  if(!isTypingNote){
+    renderSection('new', b.new, false);
+    renderSection('pending', b.pending, true);
+    renderSection('installed', b.installed, true);
+  }
+
+  const mostRecent = [lastOnboardUploadedAt, lastActiveUploadedAt].filter(Boolean).sort().pop();
+  document.getElementById('lastUpdated').textContent = mostRecent
+    ? `Last upload: ${new Date(mostRecent).toLocaleString()}` : 'No uploads yet';
+
+  window._buckets = b; // for CSV export
+}
+
+document.getElementById('searchNew').addEventListener('input', e=>{ searchTerms.new = e.target.value; render(); });
+document.getElementById('searchPending').addEventListener('input', e=>{ searchTerms.pending = e.target.value; render(); });
+document.getElementById('searchInstalled').addEventListener('input', e=>{ searchTerms.installed = e.target.value; render(); });
+
+// ---------- CSV download ----------
+function downloadCsv(rows, filename, hasHits){
+  const headers = ['Company','OHQ ID','Channel OHQ ID','Website','Close Date','Reseller Channel','Opportunity Owner'];
+  if(hasHits) headers.push('Hits (YDA)','Hits (7d)','HH (YDA)');
+  headers.push('Script');
+  const lines = [headers.join(',')];
+  rows.forEach(r => {
+    const vals = [r.company, r.ohqId, r.channelOhqId, r.website, r.closeDate, r.reseller, r.owner];
+    if(hasHits) vals.push(r.hitsYda, r.hits7d, r.hhYda);
+    vals.push(notesMap[(r.channelOhqId||'').toUpperCase()] || '');
+    lines.push(vals.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type:'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('downloadNew').addEventListener('click', ()=> downloadCsv(window._buckets?.new || [], 'new-onboardings.csv', false));
+document.getElementById('downloadPending').addEventListener('click', ()=> downloadCsv(window._buckets?.pending || [], 'pending-script-install.csv', true));
+document.getElementById('downloadInstalled').addEventListener('click', ()=> downloadCsv(window._buckets?.installed || [], 'script-installed.csv', true));
+
+// ---------- Password modal ----------
+const modalOverlay = document.getElementById('modalOverlay');
+const passwordInput = document.getElementById('passwordInput');
+const passwordErr = document.getElementById('passwordErr');
+const uploadPanel = document.getElementById('uploadPanel');
+
+document.getElementById('openUploadBtn').addEventListener('click', ()=>{
+  if(uploadPanel.classList.contains('show')){ uploadPanel.scrollIntoView({behavior:'smooth', block:'start'}); return; }
+  modalOverlay.classList.add('show'); passwordInput.value=''; passwordErr.textContent='';
+  setTimeout(()=>passwordInput.focus(), 50);
+});
+document.getElementById('cancelPasswordBtn').addEventListener('click', ()=> modalOverlay.classList.remove('show'));
+document.getElementById('closeUploadBtn').addEventListener('click', ()=> uploadPanel.classList.remove('show'));
+function trySubmitPassword(){
+  if(passwordInput.value === UPLOAD_PASSWORD){
+    modalOverlay.classList.remove('show');
+    uploadPanel.classList.add('show');
+    uploadPanel.scrollIntoView({behavior:'smooth', block:'start'});
+  } else {
+    passwordErr.textContent = 'Incorrect password. Try again.';
+  }
+}
+document.getElementById('submitPasswordBtn').addEventListener('click', trySubmitPassword);
+passwordInput.addEventListener('keydown', e=>{ if(e.key==='Enter') trySubmitPassword(); });
+modalOverlay.addEventListener('click', e=>{ if(e.target===modalOverlay) modalOverlay.classList.remove('show'); });
+
+// ---------- Clear all (gated inside upload panel) ----------
+const confirmOverlay = document.getElementById('confirmOverlay');
+document.getElementById('clearAllBtn').addEventListener('click', ()=> confirmOverlay.classList.add('show'));
+document.getElementById('cancelClearBtn').addEventListener('click', ()=> confirmOverlay.classList.remove('show'));
+document.getElementById('confirmClearBtn').addEventListener('click', async ()=>{
+  try{ await storageDelete('reconcile:onboarding'); }catch(e){}
+  try{ await storageDelete('reconcile:active'); }catch(e){}
+  onboardData = []; activeData = [];
+  lastOnboardUploadedAt = null; lastActiveUploadedAt = null;
+  document.getElementById('lastOnboard').textContent = 'No file uploaded yet';
+  document.getElementById('lastActive').textContent = 'No file uploaded yet';
+  confirmOverlay.classList.remove('show');
+  render();
+});
+
+// ---------- Init + polling ----------
+loadStoredData();
+setInterval(loadStoredData, POLL_MS);
+</script>
+</body>
+</html>
