@@ -10,6 +10,7 @@ import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
   const { method } = req;
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   try {
     if (method === 'GET') {
