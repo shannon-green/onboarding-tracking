@@ -340,29 +340,46 @@ let editingNoteKeys = new Set(); // OHQ IDs currently focused, to avoid poll clo
 let lastOnboardUploadedAt = null;
 let lastActiveUploadedAt = null;
 
+// Vercel's KV/Upstash client can sometimes return an already-parsed object instead of
+// the JSON string we stored (depending on auto-deserialization behavior), which made
+// JSON.parse throw silently before. This handles both cases safely.
+function parseStoredValue(value){
+  if(value === null || value === undefined) return null;
+  if(typeof value === 'object') return value; // already parsed for us
+  if(typeof value === 'string'){
+    try{ return JSON.parse(value); }
+    catch(e){ showStorageError(`Got unreadable data back from the server: ${e.message}`); return null; }
+  }
+  return null;
+}
+
 async function loadStoredData(){
   try{
     const ob = await storageGet('reconcile:onboarding');
     if(ob && ob.value){
-      const parsed = JSON.parse(ob.value);
-      onboardData = parsed.rows || [];
-      lastOnboardUploadedAt = parsed.uploadedAt || null;
-      updateLastLine('lastOnboard', parsed.filename, parsed.uploadedAt);
+      const parsed = parseStoredValue(ob.value);
+      if(parsed){
+        onboardData = parsed.rows || [];
+        lastOnboardUploadedAt = parsed.uploadedAt || null;
+        updateLastLine('lastOnboard', parsed.filename, parsed.uploadedAt);
+      }
     }
-  }catch(e){}
+  }catch(e){ showStorageError(`Problem loading onboarding data: ${e.message}`); }
   try{
     const ac = await storageGet('reconcile:active');
     if(ac && ac.value){
-      const parsed = JSON.parse(ac.value);
-      activeData = parsed.rows || [];
-      lastActiveUploadedAt = parsed.uploadedAt || null;
-      updateLastLine('lastActive', parsed.filename, parsed.uploadedAt);
+      const parsed = parseStoredValue(ac.value);
+      if(parsed){
+        activeData = parsed.rows || [];
+        lastActiveUploadedAt = parsed.uploadedAt || null;
+        updateLastLine('lastActive', parsed.filename, parsed.uploadedAt);
+      }
     }
-  }catch(e){}
+  }catch(e){ showStorageError(`Problem loading active clients data: ${e.message}`); }
   try{
     const nt = await storageGet('reconcile:notes');
-    if(nt && nt.value){ notesMap = JSON.parse(nt.value) || {}; }
-  }catch(e){}
+    if(nt && nt.value){ notesMap = parseStoredValue(nt.value) || {}; }
+  }catch(e){ showStorageError(`Problem loading notes: ${e.message}`); }
   render();
 }
 
@@ -373,7 +390,7 @@ async function saveNote(channelId, text){
     let current = {};
     try{
       const nt = await storageGet('reconcile:notes');
-      if(nt && nt.value) current = JSON.parse(nt.value) || {};
+      if(nt && nt.value) current = parseStoredValue(nt.value) || {};
     }catch(e){}
     current[key] = text;
     await storageSet('reconcile:notes', JSON.stringify(current));
